@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: freeads-deployment
+  namespace: pythonapp-namespace
+spec:
+  replicas: 0  # Rollout will manage replicas
+  selector:
+    matchLabels:
+      app: freeads
+  template:
+    metadata:
+      labels:
+        app: freeads
+    spec:
+      containers:
+      - name: freeads
+        image: devopsuses/myfreeads-service:latest  # Replace with your freeads Docker image
+        ports:
+        - containerPort: 5004
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: freeads-service
+  namespace: pythonapp-namespace
+spec:
+  ports:
+  - port: 5004
+    targetPort: 5004
+    protocol: TCP
+    name: http
+  selector:
+    app: freeads
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: freeads-destrule
+  namespace: pythonapp-namespace
+spec:
+  host: freeads-service
+  subsets:
+  - name: canary
+    labels:
+      app: freeads
+  - name: stable
+    labels:
+      app: freeads
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: freeads-virtualservice
+  namespace: pythonapp-namespace
+spec:
+  gateways:
+  - istio-system/pythonapp-gateway
+  hosts:
+  - "*"
+  http:
+  - name: freeads-route
+    route:
+    - destination:
+        host: freeads-service
+        port:
+          number: 80
+        subset: stable
+      weight: 100
+    - destination:
+        host: freeads-service
+        port:
+          number: 80
+        subset: canary
+      weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: freeads-rollout
+  namespace: pythonapp-namespace
+spec:
+  replicas: 1
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService:
+            name: freeads-virtualservice
+            routes:
+            - freeads-route
+          destinationRule:
+            name: freeads-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 20
+      - pause: {duration: 10s}
+      - setWeight: 50
+      - pause: {duration: 10s}
+      - setWeight: 100
+      - pause: {}
+  selector:
+    matchLabels:
+      app: freeads
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: freeads-deployment
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-freeads
+  namespace: pythonapp-namespace
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: freeads-rollout
+  targetCPUUtilizationPercentage: 50
+

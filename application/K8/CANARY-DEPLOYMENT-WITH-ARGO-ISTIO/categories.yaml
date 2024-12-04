@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: categories-deployment
+  namespace: pythonapp-namespace
+spec:
+  replicas: 0  # Rollout will manage replicas
+  selector:
+    matchLabels:
+      app: categories
+  template:
+    metadata:
+      labels:
+        app: categories
+    spec:
+      containers:
+      - name: categories
+        image: devopsuses/mycategories-service:latest  # Replace with your categories Docker image
+        ports:
+        - containerPort: 5003
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: categories-service
+  namespace: pythonapp-namespace
+spec:
+  ports:
+  - port: 5003
+    targetPort: 5003
+    protocol: TCP
+    name: http
+  selector:
+    app: categories
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: categories-destrule
+  namespace: pythonapp-namespace
+spec:
+  host: categories-service
+  subsets:
+  - name: canary
+    labels:
+      app: categories
+  - name: stable
+    labels:
+      app: categories
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: categories-virtualservice
+  namespace: pythonapp-namespace
+spec:
+  gateways:
+  - istio-system/pythonapp-gateway
+  hosts:
+  - "*"
+  http:
+  - name: categories-route
+    route:
+    - destination:
+        host: categories-service
+        port:
+          number: 80
+        subset: stable
+      weight: 100
+    - destination:
+        host: categories-service
+        port:
+          number: 80
+        subset: canary
+      weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: categories-rollout
+  namespace: pythonapp-namespace
+spec:
+  replicas: 1
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService:
+            name: categories-virtualservice
+            routes:
+            - categories-route
+          destinationRule:
+            name: categories-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 20
+      - pause: {duration: 10s}
+      - setWeight: 50
+      - pause: {duration: 10s}
+      - setWeight: 100
+      - pause: {}
+  selector:
+    matchLabels:
+      app: categories
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: categories-deployment
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-categories
+  namespace: pythonapp-namespace
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: categories-rollout
+  targetCPUUtilizationPercentage: 50
+

@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-deployment
+  namespace: pythonapp-namespace
+spec:
+  replicas: 0  # Rollout will manage replicas
+  selector:
+    matchLabels:
+      app: news
+  template:
+    metadata:
+      labels:
+        app: news
+    spec:
+      containers:
+      - name: news
+        image: devopsuses/mynews-service:latest  # Replace with your news Docker image
+        ports:
+        - containerPort: 5002
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: news-service
+  namespace: pythonapp-namespace
+spec:
+  ports:
+  - port: 5002
+    targetPort: 5002
+    protocol: TCP
+    name: http
+  selector:
+    app: news
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: news-destrule
+  namespace: pythonapp-namespace
+spec:
+  host: news-service
+  subsets:
+  - name: canary
+    labels:
+      app: news
+  - name: stable
+    labels:
+      app: news
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: news-virtualservice
+  namespace: pythonapp-namespace
+spec:
+  gateways:
+  - istio-system/pythonapp-gateway
+  hosts:
+  - "*"
+  http:
+  - name: news-route
+    route:
+    - destination:
+        host: news-service
+        port:
+          number: 80
+        subset: stable
+      weight: 100
+    - destination:
+        host: news-service
+        port:
+          number: 80
+        subset: canary
+      weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: news-rollout
+  namespace: pythonapp-namespace
+spec:
+  replicas: 1
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService:
+            name: news-virtualservice
+            routes:
+            - news-route
+          destinationRule:
+            name: news-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 20
+      - pause: {duration: 10s}
+      - setWeight: 50
+      - pause: {duration: 10s}
+      - setWeight: 100
+      - pause: {}
+  selector:
+    matchLabels:
+      app: news
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: news-deployment
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-news
+  namespace: pythonapp-namespace
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: news-rollout
+  targetCPUUtilizationPercentage: 50
+

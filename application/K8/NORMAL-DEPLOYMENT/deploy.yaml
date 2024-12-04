@@ -1,0 +1,174 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: devopsuses/myfrontend:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: TRENDING_SERVICE_URL
+              value: "http://trending-service:5001/trending"
+            - name: NEWS_SERVICE_URL
+              value: "http://news-service:5002/news"
+            - name: CATEGORIES_SERVICE_URL
+              value: "http://categories-service:5003/categories"
+            - name: FREEADS_SERVICE_URL
+              value: "http://freeads-service:5004/freeads"      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trending
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trending
+  template:
+    metadata:
+      labels:
+        app: trending
+    spec:
+      containers:
+        - name: trending
+          image: devopsuses/mytrending-service:latest
+          ports:
+            - containerPort: 5001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trending-service
+spec:
+  selector:
+    app: trending
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: news
+  template:
+    metadata:
+      labels:
+        app: news
+    spec:
+      containers:
+        - name: news
+          image: devopsuses/mynews-service:latest
+          ports:
+            - containerPort: 5002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: news-service
+spec:
+  selector:
+    app: news
+  ports:
+    - protocol: TCP
+      port: 5002
+      targetPort: 5002
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: categories
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: categories
+  template:
+    metadata:
+      labels:
+        app: categories
+    spec:
+      containers:
+        - name: categories
+          image: devopsuses/mycategories-service:latest
+          ports:
+            - containerPort: 5003
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: categories-service
+spec:
+  selector:
+    app: categories
+  ports:
+    - protocol: TCP
+      port: 5003
+      targetPort: 5003
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: freeads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: freeads
+  template:
+    metadata:
+      labels:
+        app: freeads
+    spec:
+      containers:
+        - name: freeads
+          image: devopsuses/myfreeads-service:latest
+          ports:
+            - containerPort: 5004
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: freeads-service
+spec:
+  selector:
+    app: freeads
+  ports:
+    - protocol: TCP
+      port: 5004
+      targetPort: 5004
+  type: ClusterIP
+ 

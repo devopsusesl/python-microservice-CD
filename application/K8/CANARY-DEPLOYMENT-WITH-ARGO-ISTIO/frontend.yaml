@@ -1,0 +1,161 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pythonapp-namespace
+  labels:
+    istio-injection: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: pythonapp-namespace
+spec:
+  replicas: 0  # Rollout will manage replicas
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: devopsuses/myfrontend-service:latest  # Replace with your frontend Docker image
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 100m
+        env:
+          - name: TRENDING_SERVICE_URL
+            value: "http://trending-service:5001/trending"
+          - name: NEWS_SERVICE_URL
+            value: "http://news-service:5002/news"
+          - name: CATEGORIES_SERVICE_URL
+            value: "http://categories-service:5003/categories"
+          - name: FREEADS_SERVICE_URL
+            value: "http://freeads-service:5004/freeads"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: pythonapp-namespace
+spec:
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: frontend
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: frontend-destrule
+  namespace: pythonapp-namespace
+spec:
+  host: frontend-service
+  subsets:
+  - name: canary
+    labels:
+      app: frontend
+  - name: stable
+    labels:
+      app: frontend
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: frontend-virtualservice
+  namespace: pythonapp-namespace
+spec:
+  gateways:
+  - istio-system/pythonapp-gateway
+  hosts:
+  - "*"
+  http:
+  - name: frontend-route
+    route:
+    - destination:
+        host: frontend-service
+        port:
+          number: 80
+        subset: stable
+      weight: 100
+    - destination:
+        host: frontend-service
+        port:
+          number: 80
+        subset: canary
+      weight: 0
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: pythonapp-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: frontend-rollout
+  namespace: pythonapp-namespace
+spec:
+  replicas: 1
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService:
+            name: frontend-virtualservice
+            routes:
+            - frontend-route
+          destinationRule:
+            name: frontend-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 20
+      - pause: {duration: 10s}
+      - setWeight: 50
+      - pause: {duration: 10s}
+      - setWeight: 100
+      - pause: {}
+  selector:
+    matchLabels:
+      app: frontend
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend-deployment
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-frontend
+  namespace: pythonapp-namespace
+spec:
+  maxReplicas: 15
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: frontend-rollout
+  targetCPUUtilizationPercentage: 50
+
