@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     stages {
-        stage('terraform plan') {
+        stage('Terraform Plan') {
             steps {
-                echo 'terraform plan'
+                echo 'Terraform Plan'
                 script {
-                    dir('infrastructucture/terraform') {
+                    dir('infrastructure/terraform') {
                         sh "terraform --version"
                         sh "terraform init"
                         sh "terraform plan"
@@ -15,11 +15,11 @@ pipeline {
                 }
             }
         }
-        stage('terraform apply') {
+        stage('Terraform Apply') {
             steps {
-                echo 'terraform apply'
+                echo 'Terraform Apply'
                 script {
-                    dir('infrastructucture/terraform') {
+                    dir('infrastructure/terraform') {
                         def action = input message: 'Select Action', parameters: [
                             choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Choose whether to apply or destroy the infrastructure')
                         ]
@@ -34,18 +34,18 @@ pipeline {
         }
         stage('Setup Kubernetes Config') {
             steps {
-                echo 'Setup Kubernetes Config'
+                echo 'Setting up Kubernetes Config'
                 script {
                     sh 'aws eks update-kubeconfig --name myapp-eks-cluster'
                     sh 'kubectl get ns'
                 }
             }
         }
-        stage('deploy tools') {
+        stage('Deploy Tools') {
             steps {
-                echo 'deploy tools'
+                echo 'Deploy Tools'
                 script {
-                    dir('infrastructucture/tools') {
+                    dir('infrastructure/tools') {
                         sh 'kubectl create namespace argocd'
                         sh 'kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml'
                         sh 'kubectl create namespace argo-rollouts'
@@ -55,30 +55,23 @@ pipeline {
                 }
             }
         }
-        stage('xxx') {
+        stage('Deploy Application') {  // Replace xxx with an appropriate stage name
             steps {
-                echo 'xxx'
-                script {}
+                echo 'Deploying Application'
+                // Add deployment steps
             }
         }
-        stage('xxx') {
+        stage('Test Application') {  // Replace xxx with another appropriate stage name
             steps {
-                echo 'xxx'
-                script {}
+                echo 'Testing Application'
+                // Add testing steps
             }
         }
-        stage('xxx') {
+        stage('Monitor Application') {  // Another meaningful name
             steps {
-                echo 'xxx'
-                script {}
+                echo 'Monitoring Application'
+                // Add monitoring steps
             }
         }
-        stage('xxx') {
-            steps {
-                echo 'xxx'
-                script {}
-            }
-        }
-        
     }
 }
