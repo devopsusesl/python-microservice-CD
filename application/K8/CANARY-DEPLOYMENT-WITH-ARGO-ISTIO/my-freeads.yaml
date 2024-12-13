@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: freeads
-        image: devopsuses/myfreeads-service:latest  # Replace with your freeads Docker image
+        image: devopsuses/myfreeads-service:v7
         ports:
         - containerPort: 5004
         resources:
