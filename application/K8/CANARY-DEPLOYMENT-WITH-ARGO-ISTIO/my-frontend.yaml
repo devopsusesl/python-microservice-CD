@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: devopsuses/myfrontend-service:latest  # Replace with your frontend Docker image
+        image: devopsuses/myfrontend-service:v7
         ports:
         - containerPort: 5000
         resources:
