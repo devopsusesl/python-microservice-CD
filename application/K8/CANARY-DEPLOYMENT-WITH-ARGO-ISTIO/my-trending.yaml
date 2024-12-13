@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: trending
-        image: devopsuses/mytrending-service:v4
+        image: devopsuses/mytrending-service:v7
         ports:
         - containerPort: 5001
         resources:
