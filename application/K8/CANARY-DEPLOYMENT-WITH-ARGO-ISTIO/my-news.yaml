@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: news
-        image: devopsuses/mynews-service:v5
+        image: devopsuses/mynews-service:v7
         ports:
         - containerPort: 5002
         resources:
