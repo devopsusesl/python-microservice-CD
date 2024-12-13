@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: news
-        image: devopsuses/mynews-service:latest  # Replace with your news Docker image
+        image: devopsuses/mynews-service:v5
         ports:
         - containerPort: 5002
         resources:
