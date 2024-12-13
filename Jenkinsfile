@@ -45,7 +45,7 @@ pipeline {
             steps {
                 echo 'Deploy Tools'
                 script {
-                    dir('infrastructure/tools') {
+                    dir('infrastructure/cluster-tools') {
                         sh 'kubectl create namespace argocd'
                         sh 'kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml'
                         sh 'kubectl create namespace argo-rollouts'
