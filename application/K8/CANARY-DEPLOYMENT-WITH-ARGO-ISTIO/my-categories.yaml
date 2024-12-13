@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: categories
-        image: devopsuses/mycategories-service:latest  # Replace with your categories Docker image
+        image: devopsuses/mycategories-service:v7
         ports:
         - containerPort: 5003
         resources:
